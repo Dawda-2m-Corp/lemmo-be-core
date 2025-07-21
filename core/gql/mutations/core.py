@@ -1,0 +1,2 @@
+class CoreAuthenticatedMutation:
+    pass
