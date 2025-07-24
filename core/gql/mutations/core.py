@@ -4,6 +4,10 @@ from graphene.types.objecttype import ObjectTypeMeta
 from typing import Any, Dict, List, Optional
 from core.app_utils import lemmo_message
 import graphene
+import logging
+import traceback
+
+logger = logging.getLogger(__name__)
 
 class GrapheneABCMeta(ABCMeta, ObjectTypeMeta):
     pass
@@ -18,9 +22,10 @@ class CoreAuthenticatedMutation(graphene.Mutation, metaclass=GrapheneABCMeta):
     message = graphene.String()
     error_details = graphene.List(graphene.String)
     data = graphene.JSONString()  # Use JSONString for flexible data structure
+    errors = graphene.List(graphene.String)
 
     @classmethod
-    def mutate(cls, root, info, **kwargs):
+    def mutate(cls, root, info, **data):
         """
         Main mutation entry point that handles authentication before
         calling the concrete implementation.
@@ -37,23 +42,26 @@ class CoreAuthenticatedMutation(graphene.Mutation, metaclass=GrapheneABCMeta):
 
         try:
             # Check permissions if needed
-            if hasattr(cls, 'check_permissions') and not cls.check_permissions(user, **kwargs):
+            if hasattr(cls, 'check_permissions') and not cls.check_permissions(user, **data):
                 result = lemmo_message(
                     success=False,
+                    data=data,
                     message="Insufficient permissions",
-                    error_details=["User does not have required permissions"]
+                    error_details=["User does not have required permissions"],
                 )
                 return cls(**result)
 
             # Call the concrete mutation implementation
-            result = cls.perform_mutation(root, info, user, **kwargs)
+            result = cls.perform_mutation(root, info, user, **data)
             return cls(**result)
 
         except Exception as e:
+            logger.error(f"Error during mutation execution: {e}", exc_info=True)
             result = lemmo_message(
                 success=False,
+                data=data,
                 message="An error occurred during mutation execution",
-                error_details=[str(e)]
+                error_details=[traceback.format_exc()]
             )
             return cls(**result)
 
@@ -78,7 +86,7 @@ class CoreAuthenticatedMutation(graphene.Mutation, metaclass=GrapheneABCMeta):
 
     @classmethod
     @abstractmethod
-    def perform_mutation(cls, root, info, user, **kwargs) -> Dict[str, Any]:
+    def perform_mutation(cls, root, info, user, **data) -> Dict[str, Any]:
         """
         Abstract method that concrete mutations must implement.
         This is where the actual mutation logic goes.
@@ -87,7 +95,7 @@ class CoreAuthenticatedMutation(graphene.Mutation, metaclass=GrapheneABCMeta):
             root: GraphQL root value
             info: GraphQL resolve info
             user: Authenticated user object
-            **kwargs: Mutation arguments
+            **data: Mutation arguments
 
         Returns:
             Dict: lemmo_message format dictionary
@@ -95,14 +103,14 @@ class CoreAuthenticatedMutation(graphene.Mutation, metaclass=GrapheneABCMeta):
         pass
 
     @classmethod
-    def check_permissions(cls, user, **kwargs) -> bool:
+    def check_permissions(cls, user, **data) -> bool:
         """
         Optional permission checking method.
         Override in concrete mutations for specific permission logic.
 
         Args:
             user: Authenticated user object
-            **kwargs: Mutation arguments
+            **data: Mutation arguments
 
         Returns:
             bool: True if user has permission, False otherwise
@@ -119,44 +127,49 @@ class CoreUnauthenticatedMutation(graphene.Mutation, metaclass=GrapheneABCMeta):
     success = graphene.Boolean()
     message = graphene.String()
     error_details = graphene.List(graphene.String)
-    data = graphene.JSONString()  # Use JSONString for flexible data structure
+    data = graphene.JSONString()
+    errors = graphene.List(graphene.String)
 
     @classmethod
-    def mutate(cls, root, info, **kwargs):
+    def mutate(cls, root, info, **data):
         """
         Main mutation entry point for unauthenticated mutations.
         """
         try:
             # Optional rate limiting or other checks
-            if not cls.validate_request(info, **kwargs):
+            if not cls.validate_request(info, **data):
                 result = lemmo_message(
                     success=False,
+                    data=data,
                     message="Request validation failed",
                     error_details=["Request did not pass validation checks"]
                 )
                 return cls(**result)
 
             # Call the concrete mutation implementation
-            result = cls.perform_mutation(root, info, **kwargs)
+            result = cls.perform_mutation(root, info, **data)
             return cls(**result)
 
         except Exception as e:
+            logger.error(f"Error during mutation execution: {e}", exc_info=True)
             result = lemmo_message(
                 success=False,
+                data=data,
                 message="An error occurred during mutation execution",
-                error_details=[str(e)]
+                error_details=[traceback.format_exc()],
+                errors=[str(e)]
             )
             return cls(**result)
 
     @classmethod
-    def validate_request(cls, info, **kwargs) -> bool:
+    def validate_request(cls, info, **data) -> bool:
         """
         Optional request validation for unauthenticated mutations.
         Override for rate limiting, CAPTCHA validation, etc.
 
         Args:
             info: GraphQL resolve info
-            **kwargs: Mutation arguments
+            **data: Mutation arguments
 
         Returns:
             bool: True if request is valid, False otherwise
@@ -168,7 +181,7 @@ class CoreUnauthenticatedMutation(graphene.Mutation, metaclass=GrapheneABCMeta):
 
     @classmethod
     @abstractmethod
-    def perform_mutation(cls, root, info, **kwargs) -> Dict[str, Any]:
+    def perform_mutation(cls, root, info, **data) -> Dict[str, Any]:
         """
         Abstract method that concrete mutations must implement.
         This is where the actual mutation logic goes.
