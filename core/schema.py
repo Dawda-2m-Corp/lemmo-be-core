@@ -37,29 +37,57 @@ def create_schema() -> graphene.Schema:
         # Get queries and mutations from all apps
         queries, mutations = AppManager.get_app_schema()
 
-        # Create base query class with all app queries
-        if queries:
-            query_classes = [BaseQuery] + queries
-            Query = type("Query", tuple(query_classes), {})
-        else:
-            Query = BaseQuery
+        # Create a combined query class with all app queries
+        query_fields = {}
 
         # Add a simple hello query for testing
-        class HelloQuery(BaseQuery):
-            hello = graphene.String(default_value="Hi there")
+        def resolve_hello(self, info):
+            return "Hello from Lemmo Core!"
 
-            def resolve_hello(self, info):
-                return "Hello from Lemmo Core!"
+        query_fields["hello"] = graphene.String(
+            default_value="Hi there", resolver=resolve_hello
+        )
 
-        # Create base mutation class with all app mutations
-        if mutations:
-            mutation_classes = [BaseMutation] + mutations
-            Mutation = type("Mutation", tuple(mutation_classes), {})
+        # Add all app queries
+        for query_class in queries:
+            if hasattr(query_class, "_meta") and hasattr(query_class._meta, "fields"):
+                for field_name, field in query_class._meta.fields.items():
+                    if field_name not in query_fields:
+                        query_fields[field_name] = field
+
+        # Create the combined Query class
+        if query_fields:
+            Query = type("Query", (graphene.ObjectType,), query_fields)
         else:
-            Mutation = BaseMutation
+            # Fallback to just the hello query
+            class Query(graphene.ObjectType):
+                hello = graphene.String(default_value="Hi there")
+
+                def resolve_hello(self, info):
+                    return "Hello from Lemmo Core!"
+
+        # Create a combined mutation class with all app mutations
+        mutation_fields = {}
+
+        # Add all app mutations
+        for mutation_class in mutations:
+            if hasattr(mutation_class, "_meta") and hasattr(
+                mutation_class._meta, "fields"
+            ):
+                for field_name, field in mutation_class._meta.fields.items():
+                    if field_name not in mutation_fields:
+                        mutation_fields[field_name] = field
+
+        # Create the combined Mutation class
+        if mutation_fields:
+            Mutation = type("Mutation", (graphene.ObjectType,), mutation_fields)
+        else:
+            # Fallback to empty mutation
+            class Mutation(graphene.ObjectType):
+                pass
 
         # Create the schema
-        schema = graphene.Schema(query=HelloQuery, mutation=Mutation)
+        schema = graphene.Schema(query=Query, mutation=Mutation)
 
         logger.info(
             f"Created GraphQL schema with {len(queries)} queries and {len(mutations)} mutations"
