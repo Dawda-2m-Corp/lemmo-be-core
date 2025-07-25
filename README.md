@@ -11,6 +11,11 @@ A comprehensive Django core package that provides essential utilities, models, a
 - **Error Handling**: Standardized error response format
 - **Type Safety**: Full type hints throughout the codebase
 
+## Requirements
+
+- Python 3.10+
+- Django 5.0+
+
 ## Installation
 
 ```bash
