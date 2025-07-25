@@ -210,12 +210,43 @@ class AppManager:
                     schema_module = importlib.import_module(f"{module_path}.schema")
 
                     if schema_module:
+                        # Load Query class with validation
                         if hasattr(schema_module, "Query"):
-                            schema_queries.append(getattr(schema_module, "Query"))
-                            logger.debug(f"Loaded Query from {module_path}")
+                            query_class = getattr(schema_module, "Query")
+                            try:
+                                # Validate that it's a proper GraphQL ObjectType
+                                if hasattr(query_class, "_meta") and hasattr(
+                                    query_class._meta, "fields"
+                                ):
+                                    schema_queries.append(query_class)
+                                    logger.debug(f"Loaded Query from {module_path}")
+                                else:
+                                    logger.warning(
+                                        f"Query class from {module_path} has no _meta.fields"
+                                    )
+                            except Exception as e:
+                                logger.error(
+                                    f"Error validating Query class from {module_path}: {e}"
+                                )
+
+                        # Load Mutation class with validation
                         if hasattr(schema_module, "Mutation"):
-                            schema_mutations.append(getattr(schema_module, "Mutation"))
-                            logger.debug(f"Loaded Mutation from {module_path}")
+                            mutation_class = getattr(schema_module, "Mutation")
+                            try:
+                                # Validate that it's a proper GraphQL ObjectType
+                                if hasattr(mutation_class, "_meta") and hasattr(
+                                    mutation_class._meta, "fields"
+                                ):
+                                    schema_mutations.append(mutation_class)
+                                    logger.debug(f"Loaded Mutation from {module_path}")
+                                else:
+                                    logger.warning(
+                                        f"Mutation class from {module_path} has no _meta.fields"
+                                    )
+                            except Exception as e:
+                                logger.error(
+                                    f"Error validating Mutation class from {module_path}: {e}"
+                                )
                 except ImportError as ime:
                     logger.warning(
                         f"Cannot import schema module: {module_path}.schema - {ime}"

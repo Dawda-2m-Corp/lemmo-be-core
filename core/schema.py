@@ -48,12 +48,31 @@ def create_schema() -> graphene.Schema:
             default_value="Hi there", resolver=resolve_hello
         )
 
-        # Add all app queries
+        # Add all app queries with proper field validation
         for query_class in queries:
-            if hasattr(query_class, "_meta") and hasattr(query_class._meta, "fields"):
-                for field_name, field in query_class._meta.fields.items():
-                    if field_name not in query_fields:
-                        query_fields[field_name] = field
+            try:
+                if hasattr(query_class, "_meta") and hasattr(
+                    query_class._meta, "fields"
+                ):
+                    for field_name, field in query_class._meta.fields.items():
+                        # Validate that the field is a proper GraphQL field
+                        if hasattr(field, "type") or hasattr(field, "_type"):
+                            if field_name not in query_fields:
+                                query_fields[field_name] = field
+                                logger.debug(f"Added query field: {field_name}")
+                        else:
+                            logger.warning(
+                                f"Skipping invalid field {field_name} from {query_class.__name__}"
+                            )
+                else:
+                    logger.warning(
+                        f"Query class {query_class.__name__} has no _meta.fields"
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Error processing query class {query_class.__name__}: {e}"
+                )
+                continue
 
         # Create the combined Query class
         if query_fields:
@@ -69,14 +88,31 @@ def create_schema() -> graphene.Schema:
         # Create a combined mutation class with all app mutations
         mutation_fields = {}
 
-        # Add all app mutations
+        # Add all app mutations with proper field validation
         for mutation_class in mutations:
-            if hasattr(mutation_class, "_meta") and hasattr(
-                mutation_class._meta, "fields"
-            ):
-                for field_name, field in mutation_class._meta.fields.items():
-                    if field_name not in mutation_fields:
-                        mutation_fields[field_name] = field
+            try:
+                if hasattr(mutation_class, "_meta") and hasattr(
+                    mutation_class._meta, "fields"
+                ):
+                    for field_name, field in mutation_class._meta.fields.items():
+                        # Validate that the field is a proper GraphQL field
+                        if hasattr(field, "type") or hasattr(field, "_type"):
+                            if field_name not in mutation_fields:
+                                mutation_fields[field_name] = field
+                                logger.debug(f"Added mutation field: {field_name}")
+                        else:
+                            logger.warning(
+                                f"Skipping invalid mutation field {field_name} from {mutation_class.__name__}"
+                            )
+                else:
+                    logger.warning(
+                        f"Mutation class {mutation_class.__name__} has no _meta.fields"
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Error processing mutation class {mutation_class.__name__}: {e}"
+                )
+                continue
 
         # Create the combined Mutation class
         if mutation_fields:
