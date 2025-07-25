@@ -62,9 +62,147 @@ DEFAULT_APPS = [
         "description": "Handles integration with external systems.",
         "module": "lemmo_apps.integration",
         "url_prefix": "integrations",
-    }
+    },
+    {
+        "name": "Logistics Module",
+        "description": "Handles logistics and transportation management.",
+        "module": "lemmo_apps.logistics",
+        "url_prefix": "logistics",
+    },
+    {
+        "name": "Supplier Module",
+        "description": "Handles supplier management and relationships.",
+        "module": "lemmo_apps.supplier",
+        "url_prefix": "suppliers",
+    },
+    {
+        "name": "Order Module",
+        "description": "Handles order management and processing.",
+        "module": "lemmo_apps.order",
+        "url_prefix": "orders",
+    },
 ]
 
 LEMMO_DEFAULT_CONFIG_DATA = {
     "apps": DEFAULT_APPS,
 }
+
+# Version information
+__version__ = "0.1.0"
+__author__ = "2MCorp"
+__email__ = "contact@2mcorp.com"
+
+# Export main classes and functions
+from .app_manager import AppManager
+from .app_utils import (
+    lemmo_message,
+    success_message,
+    error_message,
+    warning_message,
+    info_message,
+    validate_required_fields,
+    sanitize_data,
+    LemmoResponse,
+    MessageType,
+)
+
+# Models are imported lazily to avoid Django app registry issues
+# Use get_abstract_models() function to access models when Django is ready
+from .gql.mutations.core import (
+    CoreAuthenticatedMutation,
+    CoreUnauthenticatedMutation,
+    MutationError,
+    ValidationError,
+    PermissionError,
+    BusinessLogicError,
+)
+from .gql.queries.core import (
+    CoreAuthenticatedQuery,
+    CoreUnauthenticatedQuery,
+    PaginatedQuery,
+    FilteredQuery,
+    QueryError,
+    QueryValidationError,
+    QueryPermissionError,
+)
+
+
+# Convenience functions
+def get_app_info():
+    """Get information about all configured apps."""
+    return AppManager.get_app_info()
+
+
+def get_schema_info():
+    """Get information about the GraphQL schema."""
+    from .schema import get_schema_info
+
+    return get_schema_info()
+
+
+def reload_schema():
+    """Reload the GraphQL schema."""
+    from .schema import reload_schema
+
+    return reload_schema()
+
+
+def generate_config(overwrite=False):
+    """Generate the default configuration file."""
+    return AppManager.generate_config(overwrite=overwrite)
+
+
+def get_models():
+    """Get abstract models when Django is ready."""
+    from .models import get_abstract_models
+
+    return get_abstract_models()
+
+
+# Package exports
+__all__ = [
+    # Core classes
+    "AppManager",
+    # App utilities
+    "lemmo_message",
+    "success_message",
+    "error_message",
+    "warning_message",
+    "info_message",
+    "validate_required_fields",
+    "sanitize_data",
+    "LemmoResponse",
+    "MessageType",
+    # Models (use get_models() function to access when Django is ready)
+    "get_models",
+    # GraphQL Mutations
+    "CoreAuthenticatedMutation",
+    "CoreUnauthenticatedMutation",
+    "MutationError",
+    "ValidationError",
+    "PermissionError",
+    "BusinessLogicError",
+    # GraphQL Queries
+    "CoreAuthenticatedQuery",
+    "CoreUnauthenticatedQuery",
+    "PaginatedQuery",
+    "FilteredQuery",
+    "QueryError",
+    "QueryValidationError",
+    "QueryPermissionError",
+    # Convenience functions
+    "get_app_info",
+    "get_schema_info",
+    "reload_schema",
+    "generate_config",
+    "get_models",
+    # Configuration
+    "DEFAULT_APPS",
+    "LEMMO_DEFAULT_CONFIG_DATA",
+    "get_project_root",
+    "get_config_file_path",
+    # Version
+    "__version__",
+    "__author__",
+    "__email__",
+]
