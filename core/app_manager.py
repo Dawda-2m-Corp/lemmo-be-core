@@ -218,8 +218,25 @@ class AppManager:
                                 if hasattr(query_class, "_meta") and hasattr(
                                     query_class._meta, "fields"
                                 ):
-                                    schema_queries.append(query_class)
-                                    logger.debug(f"Loaded Query from {module_path}")
+                                    # Try to access fields to catch any issues early
+                                    try:
+                                        fields = query_class._meta.fields
+                                        # Check if fields contain any problematic types
+                                        for field_name, field in fields.items():
+                                            if isinstance(field, dict):
+                                                logger.warning(
+                                                    f"Skipping Query class from {module_path} - field '{field_name}' is a dict"
+                                                )
+                                                raise ValueError(
+                                                    f"Field '{field_name}' is a dict"
+                                                )
+
+                                        schema_queries.append(query_class)
+                                        logger.debug(f"Loaded Query from {module_path}")
+                                    except Exception as field_error:
+                                        logger.error(
+                                            f"Error accessing fields in Query class from {module_path}: {field_error}"
+                                        )
                                 else:
                                     logger.warning(
                                         f"Query class from {module_path} has no _meta.fields"
@@ -237,8 +254,27 @@ class AppManager:
                                 if hasattr(mutation_class, "_meta") and hasattr(
                                     mutation_class._meta, "fields"
                                 ):
-                                    schema_mutations.append(mutation_class)
-                                    logger.debug(f"Loaded Mutation from {module_path}")
+                                    # Try to access fields to catch any issues early
+                                    try:
+                                        fields = mutation_class._meta.fields
+                                        # Check if fields contain any problematic types
+                                        for field_name, field in fields.items():
+                                            if isinstance(field, dict):
+                                                logger.warning(
+                                                    f"Skipping Mutation class from {module_path} - field '{field_name}' is a dict"
+                                                )
+                                                raise ValueError(
+                                                    f"Field '{field_name}' is a dict"
+                                                )
+
+                                        schema_mutations.append(mutation_class)
+                                        logger.debug(
+                                            f"Loaded Mutation from {module_path}"
+                                        )
+                                    except Exception as field_error:
+                                        logger.error(
+                                            f"Error accessing fields in Mutation class from {module_path}: {field_error}"
+                                        )
                                 else:
                                     logger.warning(
                                         f"Mutation class from {module_path} has no _meta.fields"
@@ -280,17 +316,30 @@ class AppManager:
                 url_module = importlib.import_module(f"{app['module']}.urls")
 
                 if hasattr(url_module, "urlpatterns"):
-                    url_prefix = app.get("url_prefix", "")
-                    urls.extend(path(f"{url_prefix}/", include(url_module)))
-                    logger.debug(
-                        f"Loaded URLs for {app['name']} with prefix: {url_prefix}"
-                    )
+                    try:
+                        # Try to access urlpatterns to validate they're accessible
+                        urlpatterns = getattr(url_module, "urlpatterns")
+
+                        # If we get here, urlpatterns exist and are accessible
+                        url_prefix = app.get("url_prefix", "")
+                        urls.extend(path(f"{url_prefix}/", include(url_module)))
+                        logger.debug(
+                            f"Loaded URLs for {app['name']} with prefix: {url_prefix}"
+                        )
+                    except AttributeError as e:
+                        logger.warning(
+                            f"App {app['name']} has urlpatterns but they're not accessible: {e}"
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"App {app['name']} has urlpatterns but there's an error: {e}"
+                        )
                 else:
                     logger.warning(
                         f"App {app['name']} does not have a 'urlpatterns' attribute."
                     )
             except ImportError as e:
-                logger.error(f"Failed to import URLs for app '{app['name']}': {e}")
+                logger.warning(f"App {app['name']} does not have a urls.py file: {e}")
             except Exception as e:
                 logger.error(
                     f"Unexpected error loading URLs for app '{app['name']}': {e}"
@@ -353,13 +402,43 @@ class AppManager:
                 except ImportError:
                     pass
 
-            # Check if module has URLs
+            # Check if module has URLs - with better error handling
             if info["module"]:
                 try:
                     url_module = importlib.import_module(f"{info['module']}.urls")
                     info["has_urls"] = hasattr(url_module, "urlpatterns")
+
+                    # Additional validation: check if urlpatterns can be accessed without errors
+                    if info["has_urls"]:
+                        try:
+                            # Try to access urlpatterns to catch any AttributeError
+                            # But don't fail the entire process if there are issues
+                            urlpatterns = getattr(url_module, "urlpatterns")
+                            # If we get here, the urlpatterns exist and are accessible
+                        except AttributeError as e:
+                            logger.warning(
+                                f"App {info['name']} has urlpatterns but they're not accessible: {e}"
+                            )
+                            info["has_urls"] = False
+                        except Exception as e:
+                            logger.warning(
+                                f"App {info['name']} has urlpatterns but there's an error: {e}"
+                            )
+                            info["has_urls"] = False
+
                 except ImportError:
+                    # Module doesn't have urls.py - this is normal for some apps
                     pass
+                except AttributeError as e:
+                    # Handle AttributeError during import (e.g., missing view classes)
+                    logger.warning(
+                        f"App {info['name']} has urls.py but import failed due to missing components: {e}"
+                    )
+                    info["has_urls"] = False
+                except Exception as e:
+                    # Catch any other exceptions during URL validation
+                    logger.warning(f"Error checking URLs for app {info['name']}: {e}")
+                    info["has_urls"] = False
 
             app_info.append(info)
 

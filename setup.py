@@ -14,15 +14,15 @@ setup(
     url="https://github.com/2mcorp/lemmo-be-core",
     packages=find_packages(),
     install_requires=[
-        "django>=4.2,<5.0",
-        "graphene-django>=3.0,<4.0",
+        "django>=5.0,<6.0",
+        "graphene-django>=3.1,<4.0",
         "pyyaml>=6.0,<7.0",
         "typing-extensions>=4.0,<5.0",
     ],
     extras_require={
         "dev": [
             "pytest>=7.0,<8.0",
-            "pytest-django>=4.0,<5.0",
+            "pytest-django>=4.7,<5.0",
             "black>=23.0,<24.0",
             "flake8>=6.0,<7.0",
             "mypy>=1.0,<2.0",
@@ -30,7 +30,7 @@ setup(
         ],
         "test": [
             "pytest>=7.0,<8.0",
-            "pytest-django>=4.0,<5.0",
+            "pytest-django>=4.7,<5.0",
             "factory-boy>=3.0,<4.0",
         ],
     },
@@ -45,8 +45,9 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
         "Framework :: Django",
-        "Framework :: Django :: 4.2",
         "Framework :: Django :: 5.0",
+        "Framework :: Django :: 5.1",
+        "Framework :: Django :: 5.2",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
     ],
